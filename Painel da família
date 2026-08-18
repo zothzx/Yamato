@@ -1,0 +1,691 @@
+--[[
+    â›©ï¸ YAMATO - Completo + Melhorado
+    Tema: Preto / Branco / Vermelho
+    VersÃ£o completa com novas funÃ§Ãµes
+]]
+
+local Players = game:GetService("Players")
+local TextChatService = game:GetService("TextChatService")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local StarterGui = game:GetService("StarterGui")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local character, humanoid, root
+local function updateCharacter(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid", 5)
+	root = char:WaitForChild("HumanoidRootPart", 5)
+end
+
+if player.Character then
+	updateCharacter(player.Character)
+end
+player.CharacterAdded:Connect(updateCharacter)
+
+-- ====================== CONFIGURAÃ‡Ã•ES ======================
+local Config = {
+	Colors = {
+		Background = Color3.fromRGB(12, 12, 12),
+		Background2 = Color3.fromRGB(22, 22, 22),
+		Background3 = Color3.fromRGB(30, 30, 30),
+		Accent = Color3.fromRGB(200, 30, 30),
+		AccentDark = Color3.fromRGB(140, 20, 20),
+		Text = Color3.fromRGB(255, 255, 255),
+		TextDim = Color3.fromRGB(180, 180, 180),
+		Success = Color3.fromRGB(30, 160, 50),
+		Danger = Color3.fromRGB(180, 30, 30),
+	},
+	FOV = 110,
+	NormalFOV = 70,
+	WalkSpeeds = {7, 16, 28},
+	DashPower = 52,
+	AirSpeed = 35,
+	LongJumpPower = 80,
+	FlySpeed = 60,
+}
+
+local editando = false
+local botoesRapidos = {}
+local notifOn = false
+local espOn = false
+local fovOn = false
+local fullbrightOn = false
+local fpsBoostOn = false
+local airSpeedOn = false
+local longJumpOn = false
+local wallClimbOn = false
+local cameraFreeOn = false
+local flyOn = false
+local infJumpOn = false
+local antiAFKOn = false
+local noclipOn = false
+
+local highlights = {}
+local originalLighting = {}
+local originalSettings = {}
+
+-- ====================== UTILITÃRIOS ======================
+local function estilizar(t)
+	local m = {
+		a="á´€",b="Ê™",c="á´„",d="á´…",e="á´‡",f="êœ°",g="É¢",h="Êœ",i="Éª",j="á´Š",k="á´‹",l="ÊŸ",m="á´",n="É´",o="á´",p="á´˜",q="Ç«",r="Ê€",s="êœ±",t="á´›",u="á´œ",v="á´ ",w="á´¡",x="x",y="Ê",z="á´¢",
+		A="á´€",B="Ê™",C="á´„",D="á´…",E="á´‡",F="êœ°",G="É¢",H="Êœ",I="Éª",J="á´Š",K="á´‹",L="ÊŸ",M="á´",N="É´",O="á´",P="á´˜",Q="Ç«",R="Ê€",S="êœ±",T="á´›",U="á´œ",V="á´ ",W="á´¡",X="x",Y="Ê",Z="á´¢"
+	}
+	local r = ""
+	for i = 1, #t do
+		r = r .. (m[t:sub(i,i)] or t:sub(i,i))
+	end
+	return r
+end
+
+local function enviar(texto)
+	pcall(function()
+		if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+			local c = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+			if c then c:SendAsync(texto) end
+		else
+			local ev = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+			if ev and ev:FindFirstChild("SayMessageRequest") then
+				ev.SayMessageRequest:FireServer(texto, "All")
+			end
+		end
+	end)
+end
+
+local function desvirarCarro()
+	if not humanoid or not humanoid.Sit then return end
+	local seat = humanoid.SeatPart
+	if not seat then return end
+	local pos = seat.Position + Vector3.new(0, 6, 0)
+	local look = Vector3.new(seat.CFrame.LookVector.X, 0, seat.CFrame.LookVector.Z)
+	if look.Magnitude < 0.05 then look = Vector3.new(0, 0, -1) end
+	seat.AssemblyAngularVelocity = Vector3.zero
+	seat.AssemblyLinearVelocity = Vector3.zero
+	seat.CFrame = CFrame.lookAt(pos, pos + look.Unit)
+end
+
+local function criarCorner(parent, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius or 8)
+	c.Parent = parent
+	return c
+end
+
+local function criarStroke(parent, color, thickness)
+	local s = Instance.new("UIStroke")
+	s.Color = color or Config.Colors.Accent
+	s.Thickness = thickness or 1.5
+	s.Parent = parent
+	return s
+end
+
+-- ====================== GUI PRINCIPAL ======================
+local gui = Instance.new("ScreenGui")
+gui.Name = "Yamato"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- BotÃ£o principal
+local botao = Instance.new("TextButton")
+botao.Size = UDim2.new(0, 44, 0, 44)
+botao.Position = UDim2.new(0, 14, 0, 50)
+botao.BackgroundColor3 = Config.Colors.Background
+botao.Text = "â›©ï¸"
+botao.TextScaled = true
+botao.TextColor3 = Config.Colors.Accent
+botao.Font = Enum.Font.GothamBold
+botao.Parent = gui
+botao.Active = true
+botao.Draggable = true
+botao.BorderSizePixel = 0
+criarCorner(botao, 12)
+criarStroke(botao, Config.Colors.Accent, 2.2)
+
+-- Painel principal
+local painel = Instance.new("Frame")
+painel.Size = UDim2.new(0, 170, 0, 420)
+painel.Position = UDim2.new(0, 54, 0, 0)
+painel.BackgroundColor3 = Config.Colors.Background2
+painel.Visible = false
+painel.Parent = botao
+painel.BorderSizePixel = 0
+criarCorner(painel, 12)
+criarStroke(painel, Config.Colors.Accent, 1.6)
+
+-- TÃ­tulo do painel
+local titulo = Instance.new("TextLabel")
+titulo.Size = UDim2.new(1, -80, 0, 26)
+titulo.Position = UDim2.new(0, 8, 0, 4)
+titulo.BackgroundTransparency = 1
+titulo.Text = "YAMATO"
+titulo.TextColor3 = Config.Colors.Accent
+titulo.TextScaled = true
+titulo.Font = Enum.Font.GothamBold
+titulo.TextXAlignment = Enum.TextXAlignment.Left
+titulo.Parent = painel
+
+-- BotÃµes topo (FOV / ESP / Edit)
+local function criarBtnTopo(posX, texto)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(0, 22, 0, 22)
+	b.Position = UDim2.new(1, posX, 0, 5)
+	b.BackgroundColor3 = Config.Colors.Background3
+	b.Text = texto
+	b.TextScaled = true
+	b.TextColor3 = Config.Colors.Text
+	b.Font = Enum.Font.GothamBold
+	b.Parent = painel
+	b.BorderSizePixel = 0
+	criarCorner(b, 6)
+	return b
+end
+
+local btnFOV = criarBtnTopo(-76, "")
+local btnESP = criarBtnTopo(-50, "ðŸ‘ï¸")
+local btnEdit = criarBtnTopo(-24, "âœï¸")
+
+-- Scroll do painel
+local pScroll = Instance.new("ScrollingFrame")
+pScroll.Size = UDim2.new(1, -10, 1, -36)
+pScroll.Position = UDim2.new(0, 5, 0, 32)
+pScroll.BackgroundTransparency = 1
+pScroll.ScrollBarThickness = 3
+pScroll.ScrollBarImageColor3 = Config.Colors.Accent
+pScroll.BorderSizePixel = 0
+pScroll.CanvasSize = UDim2.new(0, 0, 0, 520)
+pScroll.Parent = painel
+
+local function btnP(texto, y, cor)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(1, -8, 0, 30)
+	b.Position = UDim2.new(0, 2, 0, y)
+	b.BackgroundColor3 = cor or Config.Colors.Background3
+	b.Text = texto
+	b.TextColor3 = Config.Colors.Text
+	b.TextScaled = true
+	b.Font = Enum.Font.GothamBold
+	b.Parent = pScroll
+	b.BorderSizePixel = 0
+	criarCorner(b, 7)
+	return b
+end
+
+local btnLigar   = btnP("Comandos: OFF", 4, Color3.fromRGB(50, 22, 22))
+local btnCorrer  = btnP("ðŸƒ Velocidade: OFF", 38)
+local btnDash    = btnP("â˜„ï¸ Dash: OFF", 72)
+local btnFull    = btnP("ðŸ’¡ Fullbright: OFF", 106)
+local btnLock    = btnP("ðŸ”“ Lockpick", 140)
+local btnCam     = btnP("ðŸ“· CÃ¢mera: OFF", 174)
+local btnFPS     = btnP("âš¡ FPS Boost: OFF", 208)
+local btnAir     = btnP("ðŸ‡ Air Speed: OFF", 242)
+local btnLong    = btnP("ðŸ¦˜ Long Jump: OFF", 276)
+local btnWall    = btnP("ðŸ•·ï¸ Wall Climb: OFF", 310)
+local btnFly     = btnP("ðŸ•Šï¸ Fly: OFF", 344)
+local btnInfJump = btnP("â™¾ï¸ Inf Jump: OFF", 378)
+local btnNoclip  = btnP("ðŸ‘» Noclip: OFF", 412)
+local btnAntiAFK = btnP("ðŸ›¡ï¸ Anti-AFK: OFF", 446)
+local btnUnflip  = btnP("ðŸ”„ Desvirar Carro", 480)
+local btnNotif   = btnP("ðŸ”” Notificar: OFF", 514)
+local btnReset   = btnP("â™»ï¸ Reset Character", 548)
+
+pScroll.CanvasSize = UDim2.new(0, 0, 0, 590)
+
+-- ====================== NOTIFICAÃ‡Ã•ES ======================
+local function mostrarNotif(texto, cor)
+	local n = Instance.new("TextLabel")
+	n.Size = UDim2.new(0, 280, 0, 32)
+	n.Position = UDim2.new(0.5, -140, 0, 8)
+	n.BackgroundColor3 = cor or Config.Colors.Background2
+	n.BackgroundTransparency = 0.12
+	n.Text = texto
+	n.TextColor3 = Config.Colors.Text
+	n.TextScaled = true
+	n.Font = Enum.Font.GothamBold
+	n.Parent = gui
+	n.BorderSizePixel = 0
+	n.ZIndex = 100
+	criarCorner(n, 8)
+	criarStroke(n, Color3.fromRGB(60, 60, 70), 1)
+
+	-- animaÃ§Ã£o de entrada
+	n.Position = UDim2.new(0.5, -140, 0, -40)
+	TweenService:Create(n, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
+		Position = UDim2.new(0.5, -140, 0, 8)
+	}):Play()
+
+	task.delay(2.4, function()
+		if n and n.Parent then
+			TweenService:Create(n, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+			task.wait(0.3)
+			n:Destroy()
+		end
+	end)
+end
+
+btnNotif.MouseButton1Click:Connect(function()
+	notifOn = not notifOn
+	if notifOn then
+		btnNotif.Text = "ðŸ”” Notificar: ON"
+		btnNotif.BackgroundColor3 = Config.Colors.Success
+	else
+		btnNotif.Text = "ðŸ”” Notificar: OFF"
+		btnNotif.BackgroundColor3 = Config.Colors.Background3
+	end
+end)
+
+Players.PlayerAdded:Connect(function(plr)
+	if notifOn then
+		mostrarNotif("âž•  " .. plr.Name .. "  entrou", Color3.fromRGB(20, 55, 30))
+	end
+end)
+Players.PlayerRemoving:Connect(function(plr)
+	if notifOn then
+		mostrarNotif("âž–  " .. plr.Name .. "  saiu", Color3.fromRGB(70, 20, 20))
+	end
+end)
+
+-- ====================== ESP ======================
+local function limparESP()
+	for _, h in pairs(highlights) do
+		pcall(function() if h then h:Destroy() end end)
+	end
+	highlights = {}
+end
+
+local function aplicarESP(plr)
+	if plr == player then return end
+	local char = plr.Character
+	if not char then return end
+	if highlights[plr] and highlights[plr].Parent == char then return end
+	if highlights[plr] then
+		pcall(function() highlights[plr]:Destroy() end)
+		highlights[plr] = nil
+	end
+
+	local h = Instance.new("Highlight")
+	h.FillColor = Config.Colors.Accent
+	h.OutlineColor = Color3.fromRGB(255, 255, 255)
+	h.FillTransparency = 0.6
+	h.OutlineTransparency = 0
+	h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	h.Parent = char
+	highlights[plr] = h
+end
+
+local function setESP(on)
+	espOn = on
+	btnESP.BackgroundColor3 = on and Config.Colors.Success or Config.Colors.Background3
+	if on then
+		for _, plr in ipairs(Players:GetPlayers()) do
+			aplicarESP(plr)
+		end
+	else
+		limparESP()
+	end
+end
+
+btnESP.MouseButton1Click:Connect(function()
+	setESP(not espOn)
+end)
+
+task.spawn(function()
+	while true do
+		task.wait(1.2)
+		if espOn then
+			for _, plr in ipairs(Players:GetPlayers()) do
+				aplicarESP(plr)
+			end
+		end
+	end
+end)
+
+for _, plr in ipairs(Players:GetPlayers()) do
+	plr.CharacterAdded:Connect(function()
+		if espOn then
+			task.wait(0.3)
+			aplicarESP(plr)
+		end
+	end)
+end
+Players.PlayerAdded:Connect(function(plr)
+	plr.CharacterAdded:Connect(function()
+		if espOn then
+			task.wait(0.3)
+			aplicarESP(plr)
+		end
+	end)
+end)
+
+-- ====================== FOV ======================
+local function setFOV(on)
+	fovOn = on
+	btnFOV.BackgroundColor3 = on and Config.Colors.Success or Config.Colors.Background3
+	camera = workspace.CurrentCamera
+	if camera then
+		camera.FieldOfView = on and Config.FOV or Config.NormalFOV
+	end
+end
+
+btnFOV.MouseButton1Click:Connect(function()
+	setFOV(not fovOn)
+end)
+
+RunService.RenderStepped:Connect(function()
+	camera = workspace.CurrentCamera
+	if fovOn and camera then
+		camera.FieldOfView = Config.FOV
+	end
+end)
+
+-- ====================== FULLBRIGHT ======================
+local function setFullbright(on)
+	fullbrightOn = on
+	if on then
+		originalLighting.Brightness = Lighting.Brightness
+		originalLighting.ClockTime = Lighting.ClockTime
+		originalLighting.FogEnd = Lighting.FogEnd
+		originalLighting.GlobalShadows = Lighting.GlobalShadows
+		originalLighting.OutdoorAmbient = Lighting.OutdoorAmbient
+
+		Lighting.Brightness = 2
+		Lighting.ClockTime = 14
+		Lighting.FogEnd = 100000
+		Lighting.GlobalShadows = false
+		Lighting.OutdoorAmbient = Color3.fromRGB(180, 180, 180)
+
+		btnFull.Text = "ðŸ’¡ Fullbright: ON"
+		btnFull.BackgroundColor3 = Config.Colors.Success
+	else
+		if originalLighting.Brightness then
+			Lighting.Brightness = originalLighting.Brightness
+			Lighting.ClockTime = originalLighting.ClockTime
+			Lighting.FogEnd = originalLighting.FogEnd
+			Lighting.GlobalShadows = originalLighting.GlobalShadows
+			Lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
+		end
+		btnFull.Text = "ðŸ’¡ Fullbright: OFF"
+		btnFull.BackgroundColor3 = Config.Colors.Background3
+	end
+end
+
+btnFull.MouseButton1Click:Connect(function()
+	setFullbright(not fullbrightOn)
+end)
+
+-- ====================== FPS BOOST ======================
+local function setFPSBoost(on)
+	fpsBoostOn = on
+	if on then
+		originalSettings.QualityLevel = settings().Rendering.QualityLevel
+		settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+		for _, v in ipairs(workspace:GetDescendants()) do
+			if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") then
+				v.Enabled = false
+			end
+		end
+		btnFPS.Text = "âš¡ FPS Boost: ON"
+		btnFPS.BackgroundColor3 = Config.Colors.Success
+	else
+		if originalSettings.QualityLevel then
+			settings().Rendering.QualityLevel = originalSettings.QualityLevel
+		end
+		btnFPS.Text = "âš¡ FPS Boost: OFF"
+		btnFPS.BackgroundColor3 = Config.Colors.Background3
+	end
+end
+
+btnFPS.MouseButton1Click:Connect(function()
+	setFPSBoost(not fpsBoostOn)
+end)
+
+-- ====================== VELOCIDADE ======================
+local btnVel = nil
+local modoVel = 3
+local correndoOn = false
+
+local function attVel()
+	if not humanoid then return end
+	if modoVel == 1 then
+		humanoid.WalkSpeed = Config.WalkSpeeds[1]
+		if btnVel then btnVel.Text = "ðŸš¶" end
+	elseif modoVel == 2 then
+		humanoid.WalkSpeed = Config.WalkSpeeds[2]
+		if btnVel then btnVel.Text = "ðŸš¶â€â™‚ï¸" end
+	else
+		humanoid.WalkSpeed = Config.WalkSpeeds[3]
+		if btnVel then btnVel.Text = "ðŸƒ" end
+	end
+end
+
+local function criarVel()
+	if btnVel then btnVel:Destroy() end
+	btnVel = Instance.new("TextButton")
+	btnVel.Size = UDim2.new(0, 50, 0, 50)
+	btnVel.Position = UDim2.new(1, -130, 1, -290)
+	btnVel.BackgroundColor3 = Config.Colors.Background
+	btnVel.Text = "ðŸƒ"
+	btnVel.TextScaled = true
+	btnVel.TextColor3 = Config.Colors.Text
+	btnVel.Font = Enum.Font.GothamBold
+	btnVel.Parent = gui
+	btnVel.Draggable = editando
+	btnVel.BorderSizePixel = 0
+	criarCorner(btnVel, 25)
+	criarStroke(btnVel, Config.Colors.Accent, 1.8)
+
+	btnVel.MouseButton1Click:Connect(function()
+		if editando then return end
+		modoVel = modoVel % 3 + 1
+		attVel()
+	end)
+	modoVel = 3
+	attVel()
+end
+
+btnCorrer.MouseButton1Click:Connect(function()
+	correndoOn = not correndoOn
+	if correndoOn then
+		btnCorrer.Text = "ðŸƒ Velocidade: ON"
+		btnCorrer.BackgroundColor3 = Config.Colors.Success
+		criarVel()
+	else
+		btnCorrer.Text = "ðŸƒ Velocidade: OFF"
+		btnCorrer.BackgroundColor3 = Config.Colors.Background3
+		if btnVel then
+			btnVel:Destroy()
+			btnVel = nil
+		end
+		if humanoid then
+			humanoid.WalkSpeed = 16
+		end
+	end
+end)
+
+-- ====================== DASH ======================
+local btnDashF = nil
+local dashOn = false
+
+local function criarDash()
+	if btnDashF then btnDashF:Destroy() end
+	btnDashF = Instance.new("TextButton")
+	btnDashF.Size = UDim2.new(0, 50, 0, 50)
+	btnDashF.Position = UDim2.new(1, -190, 1, -230)
+	btnDashF.BackgroundColor3 = Config.Colors.Background
+	btnDashF.Text = "â˜„ï¸"
+	btnDashF.TextScaled = true
+	btnDashF.TextColor3 = Color3.fromRGB(255, 200, 80)
+	btnDashF.Font = Enum.Font.GothamBold
+	btnDashF.Parent = gui
+	btnDashF.Draggable = editando
+	btnDashF.BorderSizePixel = 0
+	criarCorner(btnDashF, 25)
+	criarStroke(btnDashF, Config.Colors.Accent, 1.8)
+
+	btnDashF.MouseButton1Click:Connect(function()
+		if editando or not root or not humanoid then return end
+		local d = humanoid.MoveDirection
+		if d.Magnitude < 0.1 then
+			d = root.CFrame.LookVector
+		end
+		local bv = Instance.new("BodyVelocity")
+		bv.MaxForce = Vector3.new(90000, 0, 90000)
+		bv.Velocity = d.Unit * Config.DashPower
+		bv.Parent = root
+		Debris:AddItem(bv, 0.12)
+	end)
+end
+
+btnDash.MouseButton1Click:Connect(function()
+	dashOn = not dashOn
+	if dashOn then
+		btnDash.Text = "â˜„ï¸ Dash: ON"
+		btnDash.BackgroundColor3 = Config.Colors.Success
+		criarDash()
+	else
+		btnDash.Text = "â˜„ï¸ Dash: OFF"
+		btnDash.BackgroundColor3 = Config.Colors.Background3
+		if btnDashF then
+			btnDashF:Destroy()
+			btnDashF = nil
+		end
+	end
+end)
+
+-- ====================== AIR SPEED ======================
+local airConn = nil
+btnAir.MouseButton1Click:Connect(function()
+	airSpeedOn = not airSpeedOn
+	if airSpeedOn then
+		btnAir.Text = "ðŸ‡ Air Speed: ON"
+		btnAir.BackgroundColor3 = Config.Colors.Success
+		if airConn then airConn:Disconnect() end
+		airConn = RunService.Heartbeat:Connect(function()
+			if not humanoid or not root then return end
+			if humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.Jumping then
+				local dir = humanoid.MoveDirection
+				if dir.Magnitude > 0.1 then
+					root.AssemblyLinearVelocity = Vector3.new(
+						dir.X * Config.AirSpeed,
+						root.AssemblyLinearVelocity.Y,
+						dir.Z * Config.AirSpeed
+					)
+				end
+			end
+		end)
+	else
+		btnAir.Text = "ðŸ‡ Air Speed: OFF"
+		btnAir.BackgroundColor3 = Config.Colors.Background3
+		if airConn then
+			airConn:Disconnect()
+			airConn = nil
+		end
+	end
+end)
+
+-- ====================== LONG JUMP ======================
+local longConn = nil
+btnLong.MouseButton1Click:Connect(function()
+	longJumpOn = not longJumpOn
+	if longJumpOn then
+		btnLong.Text = "ðŸ¦˜ Long Jump: ON"
+		btnLong.BackgroundColor3 = Config.Colors.Success
+		if longConn then longConn:Disconnect() end
+		longConn = humanoid and humanoid.StateChanged:Connect(function(_, new)
+			if new == Enum.HumanoidStateType.Jumping and root then
+				local dir = humanoid.MoveDirection
+				if dir.Magnitude < 0.1 then
+					dir = root.CFrame.LookVector
+				end
+				root.AssemblyLinearVelocity = Vector3.new(
+					dir.X * Config.LongJumpPower,
+					root.AssemblyLinearVelocity.Y + 15,
+					dir.Z * Config.LongJumpPower
+				)
+			end
+		end)
+	else
+		btnLong.Text = "ðŸ¦˜ Long Jump: OFF"
+		btnLong.BackgroundColor3 = Config.Colors.Background3
+		if longConn then
+			longConn:Disconnect()
+			longConn = nil
+		end
+	end
+end)
+
+-- ====================== WALL CLIMB ======================
+local wallConn = nil
+btnWall.MouseButton1Click:Connect(function()
+	wallClimbOn = not wallClimbOn
+	if wallClimbOn then
+		btnWall.Text = "ðŸ•·ï¸ Wall Climb: ON"
+		btnWall.BackgroundColor3 = Config.Colors.Success
+		if wallConn then wallConn:Disconnect() end
+		wallConn = RunService.Heartbeat:Connect(function()
+			if not root or not humanoid then return end
+			local params = RaycastParams.new()
+			params.FilterDescendantsInstances = {character}
+			params.FilterType = Enum.RaycastFilterType.Exclude
+			local origin = root.Position
+			local dirs = {
+				root.CFrame.LookVector,
+				-root.CFrame.LookVector,
+				root.CFrame.RightVector,
+				-root.CFrame.RightVector
+			}
+			for _, dir in ipairs(dirs) do
+				local result = workspace:Raycast(origin, dir * 2.2, params)
+				if result and humanoid.MoveDirection.Magnitude > 0.1 then
+					root.AssemblyLinearVelocity = Vector3.new(
+						root.AssemblyLinearVelocity.X,
+						18,
+						root.AssemblyLinearVelocity.Z
+					)
+					break
+				end
+			end
+		end)
+	else
+		btnWall.Text = "ðŸ•·ï¸ Wall Climb: OFF"
+		btnWall.BackgroundColor3 = Config.Colors.Background3
+		if wallConn then
+			wallConn:Disconnect()
+			wallConn = nil
+		end
+	end
+end)
+
+-- ====================== FLY ======================
+local flyBV, flyBG = nil, nil
+local flyConn = nil
+
+local function setFly(on)
+	flyOn = on
+	if on then
+		btnFly.Text = "ðŸ•Šï¸ Fly: ON"
+		btnFly.BackgroundColor3 = Config.Colors.Success
+		if not root then return end
+
+		flyBV = Instance.new("BodyVelocity")
+		flyBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+		flyBV.Velocity = Vector3.zero
+		flyBV.Parent = root
+
+		flyBG = Instance.new("BodyGyro")
+		flyBG.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+		flyBG.P = 10000
+		flyBG.Parent = root
+
+		if flyConn then flyConn:Disconnect() end
+		flyConn = RunService.RenderStepped:Connect(function()
+			if not root or not flyBV then return end
+			local cam = workspace.CurrentCamera
+			local move = Vector3.zero
+			if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + cam.CFrame.Lo
